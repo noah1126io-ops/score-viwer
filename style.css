@@ -1,0 +1,101 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #111;
+  color: #f4f4f4;
+}
+
+.controls {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  transition: transform 0.2s ease;
+}
+
+.controls.hidden {
+  transform: translateY(-105%);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.file-input {
+  position: relative;
+  background: #2364ff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.file-input input {
+  display: none;
+}
+
+button, input {
+  font-size: 14px;
+}
+
+#viewerContainer {
+  position: relative;
+  padding-top: 180px;
+}
+
+#pages {
+  width: min(100vw, 1200px);
+  margin: 0 auto;
+}
+
+.page-shell {
+  margin: 0 auto 10px;
+  background: #222;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-shell canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.library-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(380px, 90vw);
+  z-index: 30;
+  background: #1a1a1a;
+  border-left: 1px solid #333;
+  padding: 16px;
+  overflow: auto;
+}
+
+.hidden {
+  display: none;
+}
+
+.library-item {
+  border-bottom: 1px solid #333;
+  padding: 8px 0;
+}
+
+.library-item button {
+  margin-right: 6px;
+}
