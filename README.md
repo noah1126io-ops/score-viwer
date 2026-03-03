@@ -25,6 +25,22 @@ curl -L https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.mjs -o vendor/
 curl -L https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.worker.mjs -o vendor/pdfjs/pdf.worker.mjs
 ```
 
+## どこで実行するか（重要）
+
+このチャット横の環境ではなく、**あなたのPCのターミナル（コマンドプロンプト/PowerShell/Terminal）** で実行します。
+
+- ここ（チャット環境）: 開発・説明用
+- あなたのPC: 実際にブラウザで起動して使う場所
+
+Windowsなら、`score-viwer` フォルダを開いてアドレスバーのパスをコピーし、コマンドプロンプトで次を実行します。
+
+```bat
+cd /d "コピーしたフルパス"
+start_server.bat
+```
+
+その後、ブラウザで `http://127.0.0.1:8000` を開きます。
+
 ## 0) まず「保存（配置）」する
 
 `指定されたパスが見つかりません` が出る場合、最初に **プロジェクトをPC上に保存できているか** を確認してください。
