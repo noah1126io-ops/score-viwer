@@ -1,118 +1,188 @@
-# Score Viewer (PWA)
+# Windows最小構成: RTMPose / MMPose で弓道動画の姿勢推定
 
-PDFの楽譜を縦連結で表示するオフライン対応PWAです。
+このプロジェクトは、**Windows + conda** を前提に、
+**単一人物の弓道動画 1 本**を入力として次を行う最小構成です。
 
-## ファイル構成
+- フレームごとの 2D キーポイント推定
+- 可視化動画の書き出し
+- キーポイントの CSV / JSON 保存
+- 基本指標の算出とグラフ化
+  - 左右肩の高さ差
+  - 肩-肘-手首角度（左右）
+  - 手首高さ時系列（左右）
+  - 胴体の傾き
 
-- `index.html` UI本体
-- `app.js` PDF読み込み・レンダリング・オートスクロール・IndexedDBライブラリ
-- `sw.js` Service Worker（precache + runtime cache）
-- `manifest.json` PWAマニフェスト
-- `style.css` 最低限のUIスタイル
-- `vendor/pdfjs/` pdf.js配置先
+---
 
-## 重要: pdf.js同梱について
+## 1. 前提環境（Windows）
 
-このリポジトリにはネットワーク制限環境のため `pdfjs-dist` 本体を同梱できていません。以下をローカルに配置してください。
+- Windows 10/11
+- Anaconda / Miniconda
+- NVIDIA GPU があれば GPU 版 PyTorch、なければ CPU 版で可
 
-- `vendor/pdfjs/pdf.mjs`
-- `vendor/pdfjs/pdf.worker.mjs`
+> 最初は CPU でも動きます（速度は遅め）。
 
-取得元例（オンライン環境で実施）:
+---
 
-```bash
-curl -L https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.mjs -o vendor/pdfjs/pdf.mjs
-curl -L https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.worker.mjs -o vendor/pdfjs/pdf.worker.mjs
-```
+## 2. conda 環境作成
 
-## 起動方法
-
-### 「指定されたパスが見つかりません」が出るとき
-
-これは多くの場合、**保存していない**のではなく、`cd` したパスが間違っている状態です。
-
-まず、エクスプローラーで `score-viwer` フォルダを開いて、アドレスバーをクリックし、表示されたフルパス（例: `C:\Users\<あなた>\Downloads\score-viwer`）をコピーしてください。
-
-そのパスを使ってコマンドプロンプトで次を実行します。
+### 2-1. 新規環境
 
 ```bat
-cd /d "ここにコピーしたフルパス"
-dir
+conda create -n kyudo-rtmpose python=3.10 -y
+conda activate kyudo-rtmpose
 ```
 
-`dir` の結果に **`index.html` が見えれば正しい場所**です。
+### 2-2. PyTorch インストール
 
-### Windows（最短）
+#### GPU (CUDA 12.1) 例
 
 ```bat
-cd /d "ここにコピーしたフルパス"
-start_server.bat
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
 
-### 手動起動（共通）
-
-```bash
-python -m http.server 8000 --bind 127.0.0.1
-```
-
-ブラウザで `http://127.0.0.1:8000` を開きます。
-
-
-### それでも「存在しない」と言われるとき（そもそも未配置の可能性）
-
-`cd` が正しくても `dir` に `index.html` が出ない場合は、**このプロジェクト自体がPCにまだ置かれていない**可能性があります。
-
-確認手順（Windows）:
+#### CPU のみ例
 
 ```bat
-where /r C:\ score-viwer 2>nul
+pip install torch torchvision torchaudio
 ```
 
-- 何も出ない: `score-viwer` フォルダがPC上に存在しません（未ダウンロード/未展開）。
-- 出たパスを使って、次を実行してください。
+### 2-3. MMPose 周辺
 
 ```bat
-cd /d "見つかったパス"
-dir
-start_server.bat
+pip install -U pip openmim
+mim install "mmengine>=0.10.0"
+mim install "mmcv>=2.0.1,<2.2.0"
+mim install "mmdet>=3.1.0"
+mim install "mmpose>=1.3.0"
+pip install opencv-python pandas matplotlib numpy tqdm
 ```
 
-`dir` で次のファイルが見えれば正解です。
+### 2-4. Spyder で実行したい場合
 
-- `index.html`
-- `app.js`
-- `README.md`
+```bat
+conda install spyder -y
+```
 
+Spyder 起動:
 
-## 使い方
+```bat
+spyder
+```
 
-1. `PDFを開く` で端末ローカルのPDFを選択（MVP方式）。
-2. 必要なら `ライブラリ保存` で IndexedDB に保存（拡張方式）。
-3. `ライブラリ` から再読み込み。オフライン時も利用可能。
-4. Start/Pause/Reset でオートスクロール。
-5. 速度は `px/ms` スライダー、または BPM + 1拍px から反映。
-6. 画面の余白をタップすると操作UI表示/非表示。
+Spyder の Python インタプリタを `kyudo-rtmpose` 環境に合わせてください。
 
-## iPad / Android でのオフライン確認手順
+---
 
-1. 同一LAN上の端末から開発PCの `http://<PCのIP>:8000` を開く。
-2. 一度オンラインでページ表示し、Service Worker登録完了を待つ。
-3. ホーム画面へ追加（iPad: 共有→ホーム画面、Android: メニュー→ホーム画面）。
-4. 一度アプリを閉じる。
-5. 端末を機内モードにしてホーム画面アイコンから起動。
-6. 既に保存済みPDFがライブラリから開けることを確認。
+## 3. ファイル構成
 
-## 実装上の注意点
+```text
+score-viwer/
+  README.md
+  requirements.txt
+  run_pose_video.py
+  analyze_pose_csv.py
+  input/
+    kyudo_sample.mp4
+  outputs/
+    run_YYYYmmdd_HHMMSS/
+      vis_video.mp4
+      keypoints.csv
+      keypoints.json
+      metrics.csv
+      plots/
+        shoulder_height_diff.png
+        elbow_wrist_angles.png
+        wrist_height_timeseries.png
+        torso_tilt.png
+```
 
-- Safari(iOS)はService WorkerやIndexedDB容量制限が厳しく、長期間未使用時に削除される場合があります。
-- IndexedDB保存容量は端末空き容量・ブラウザ実装に依存。大きいPDFを大量保存する場合は容量監視が必要。
-- Service Workerキャッシュ更新は `CACHE_NAME` のバージョン更新で行います。
-- オフライン完全運用には、`vendor/pdfjs` を必ず同梱してください。
+`outputs/` はスクリプト実行時に自動作成されます。
 
+---
 
-## 開かないときのチェック（Windows）
+## 4. 実行手順（最小）
 
-1. `dir` で `index.html` があるか確認。
-2. URLは `http://127.0.0.1:8000` を直接入力。
-3. 8000番が使えないなら `python -m http.server 8010 --bind 127.0.0.1` を実行。
-4. 初回起動時のWindowsファイアウォール許可を「許可」にする。
+1. `input/kyudo_sample.mp4` を置く
+2. キーポイント推定 + 可視化動画 + CSV/JSON 出力
+3. 指標グラフ化
+
+```bat
+python run_pose_video.py --input input/kyudo_sample.mp4
+python analyze_pose_csv.py --csv outputs\run_YYYYmmdd_HHMMSS\keypoints.csv
+```
+
+※2つ目のコマンドは、1つ目で作られた実際のフォルダ名に置き換えてください。
+
+---
+
+## 5. run_pose_video.py の役割
+
+- `MMPoseInferencer` を使って各フレーム推定
+- 単一人物を選択（スコア最大）
+- 次を保存
+  - 可視化動画 `vis_video.mp4`
+  - キーポイント `keypoints.csv`, `keypoints.json`
+  - 指標 `metrics.csv`
+
+キーポイントは COCO 17 点の名前で保存します。
+
+---
+
+## 6. analyze_pose_csv.py の役割
+
+`keypoints.csv` から以下を再計算・可視化します。
+
+- 左右肩の高さ差
+- 肩-肘-手首角度（左右）
+- 左右手首高さ
+- 胴体傾き
+
+出力先は `.../plots/` です。
+
+---
+
+## 7. Spyder での実行例
+
+### run_pose_video.py
+
+Spyder の `Run > Configuration per file` で引数を:
+
+```text
+--input input/kyudo_sample.mp4
+```
+
+### analyze_pose_csv.py
+
+```text
+--csv outputs/run_20260422_120000/keypoints.csv
+```
+
+---
+
+## 8. 最初の改善候補（次フェーズ）
+
+1. **弓道用の関節定義追加**
+   - 手の内、弓手/馬手に意味づけした独自特徴量を追加
+2. **時系列平滑化**
+   - Savitzky-Golay / Kalman で角度ノイズ低減
+3. **欠損補間**
+   - 低信頼フレームの補間（線形/スプライン）
+4. **区間自動分割**
+   - 射法八節に近いイベント区切り（会・離れなど）
+5. **CLI と設定ファイル分離**
+   - `config.yaml` 化して実験管理しやすくする
+6. **複数動画バッチ処理**
+   - フォルダ一括処理 + 集計レポート
+
+---
+
+## 9. トラブルシュート
+
+- `ModuleNotFoundError: mmpose`:
+  - `conda activate kyudo-rtmpose` を確認
+- `MMCV` 周りのエラー:
+  - `mmcv` / `mmdet` / `mmpose` のバージョン整合を取り直す
+- 可視化動画が生成されない:
+  - OpenCV の codec 問題の可能性。`mp4v` で失敗する場合 `XVID` を試す
+
